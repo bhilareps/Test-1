@@ -1,0 +1,30 @@
+exportData(type: 'csv' | 'excel') {
+  const api = this.gridOptions.api;
+  const columnApi = this.gridOptions.columnApi;
+
+  // rows: selected-only vs all
+  const selectedRows = api.getSelectedRows();
+  const onlySelected = selectedRows.length > 0;
+
+  // build column list excluding any checkbox-only column(s)
+  const columnsToExport = columnApi
+    .getAllDisplayedColumns()
+    .filter(col => !col.getColDef().checkboxSelection)   // <- skip checkbox column(s)
+    .map(col => col.getColId());
+
+  // filename
+  const rowCount = onlySelected ? selectedRows.length : api.getDisplayedRowCount();
+  const fileName = `${this.selectedRecName}(${rowCount}).${type}`;
+
+  const exportParams: any = {
+    fileName,
+    onlySelected,
+    columnKeys: columnsToExport
+  };
+
+  if (type === 'csv') {
+    api.exportDataAsCsv(exportParams);
+  } else {
+    api.exportDataAsExcel(exportParams);
+  }
+}
