@@ -1,0 +1,30 @@
+model interface
+
+export interface Employee {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  age: number;
+  gender: string;
+  company: {
+    name: string;
+    department: string;
+    title: string;
+  };
+  address: {
+    city: string;
+    state: string;
+    country: string;
+  };
+  university: string;
+  image: string;
+}
+
+export interface EmployeeResponse {
+  users: Employee[];
+  total: number;
+  skip: number;
+  limit: number;
+}
