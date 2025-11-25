@@ -1,0 +1,1633 @@
+# Complete Student Management System - Detailed Step-by-Step Guide
+
+Let me guide you through building a **complete Student Management System** from absolute scratch. I'll explain every single line of code!
+
+***
+
+## 🎯 What We're Building
+
+A **Student Management System** with these features:
+- ✅ Add new students
+- ✅ View all students
+- ✅ View single student details
+- ✅ Update student information
+- ✅ Delete students
+- ✅ Enroll students in courses
+- ✅ View student's enrolled courses
+- ✅ Grade management
+
+***
+
+## 📋 Part 1: Project Setup (10 minutes)
+
+### Step 1.1: Create Spring Boot Project
+
+1. **Open your browser** and go to: **https://start.spring.io**
+
+2. **Fill in these details:**
+
+```
+Project: Maven
+Language: Java
+Spring Boot: 3.2.0 (or latest)
+Group: com.studentmanagement
+Artifact: student-system
+Name: student-system
+Description: Student Management System
+Package name: com.studentmanagement
+Packaging: Jar
+Java: 21
+```
+
+3. **Click "Add Dependencies"** and add these **one by one**:
+   - Spring Web
+   - Spring Data JPA
+   - Lombok
+   - Validation
+
+4. **Click "Generate"** button (downloads a ZIP file)
+
+5. **Extract the ZIP file** to a folder (e.g., `C:\Projects\student-system`)
+
+6. **Open IntelliJ IDEA** → File → Open → Select the extracted folder
+
+7. **Wait for Maven** to download all dependencies (bottom right corner shows progress)
+
+***
+
+### Step 1.2: Add SQLite Dependency
+
+**Why?** Spring Boot doesn't include SQLite by default.
+
+1. **Open** `pom.xml` file (in project root)
+
+2. **Find** the `<dependencies>` section (around line 30)
+
+3. **Add this** right before the closing `</dependencies>` tag:
+
+```xml
+<!-- SQLite Database Driver -->
+<dependency>
+    <groupId>org.xerial</groupId>
+    <artifactId>sqlite-jdbc</artifactId>
+    <version>3.46.1.3</version>
+</dependency>
+
+<!-- SQLite Dialect for Hibernate -->
+<dependency>
+    <groupId>org.hibernate.orm</groupId>
+    <artifactId>hibernate-community-dialects</artifactId>
+</dependency>
+```
+
+4. **Click the Maven refresh icon** (top right corner, looks like a circular arrow)
+
+***
+
+### Step 1.3: Configure Database Connection
+
+1. **Navigate to:** `src/main/resources/application.properties`
+
+2. **Delete everything** in this file
+
+3. **Paste this configuration:**
+
+```properties
+# SQLite Database Configuration
+spring.datasource.url=jdbc:sqlite:student_management.db
+spring.datasource.driver-class-name=org.sqlite.JDBC
+spring.jpa.database-platform=org.hibernate.community.dialect.SQLiteDialect
+
+# Hibernate Settings
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+
+# Server Port (optional - default is 8080)
+server.port=8080
+
+# Application Name
+spring.application.name=Student Management System
+```
+
+**What does each line do?**
+
+| Line | Meaning |
+|------|---------|
+| `spring.datasource.url` | Where to create the database file |
+| `driver-class-name` | Tells Spring to use SQLite |
+| `database-platform` | Hibernate dialect for SQLite |
+| `ddl-auto=update` | Auto-create/update tables |
+| `show-sql=true` | Show SQL queries in console (for learning) |
+| `format_sql=true` | Make SQL queries readable |
+| `server.port=8080` | Application runs on http://localhost:8080 |
+
+***
+
+## 📊 Part 2: Create Database Entities (20 minutes)
+
+### Step 2.1: Create Package Structure
+
+**Right-click on** `com.studentmanagement` → New → Package
+
+Create these 5 packages:
+1. `com.studentmanagement.entity`
+2. `com.studentmanagement.repository`
+3. `com.studentmanagement.service`
+4. `com.studentmanagement.controller`
+5. `com.studentmanagement.dto`
+
+Your structure should look like:
+```
+src/main/java/com/studentmanagement/
+├── StudentSystemApplication.java
+├── entity/
+├── repository/
+├── service/
+├── controller/
+└── dto/
+```
+
+***
+
+### Step 2.2: Create Student Entity
+
+**Right-click on** `entity` package → New → Java Class → Name: `Student`
+
+```java
+package com.studentmanagement.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "students")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Student {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false)
+    private String firstName;
+    
+    @Column(nullable = false)
+    private String lastName;
+    
+    @Column(unique = true, nullable = false)
+    private String email;
+    
+    @Column(nullable = false)
+    private String phone;
+    
+    @Column(nullable = false)
+    private LocalDate dateOfBirth;
+    
+    @Column(nullable = false)
+    private String gender;
+    
+    private String address;
+    
+    private String city;
+    
+    private String state;
+    
+    private String zipCode;
+    
+    @Column(nullable = false)
+    private LocalDate enrollmentDate;
+    
+    @Column(nullable = false)
+    private String status; // ACTIVE, INACTIVE, GRADUATED
+    
+    // Helper method to get full name
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
+}
+```
+
+**📖 Understanding Each Annotation:**
+
+```java
+@Entity  
+// Tells Spring: "This class represents a database table"
+
+@Table(name = "students")  
+// Table name in database will be "students"
+
+@Data  
+// Lombok: Auto-generates getters, setters, toString, equals, hashCode
+
+@NoArgsConstructor  
+// Lombok: Creates Student() constructor with no parameters
+
+@AllArgsConstructor  
+// Lombok: Creates Student(id, firstName, lastName...) constructor
+
+@Id  
+// Marks this field as the PRIMARY KEY
+
+@GeneratedValue(strategy = GenerationType.IDENTITY)  
+// Auto-increment: Database generates ID automatically (1, 2, 3...)
+
+@Column(nullable = false)  
+// This field CANNOT be NULL in database
+
+@Column(unique = true, nullable = false)  
+// Email must be UNIQUE (no duplicate emails allowed)
+```
+
+***
+
+### Step 2.3: Create Course Entity
+
+**Right-click on** `entity` package → New → Java Class → Name: `Course`
+
+```java
+package com.studentmanagement.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "courses")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Course {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true, nullable = false)
+    private String courseCode; // e.g., "CS101"
+    
+    @Column(nullable = false)
+    private String courseName; // e.g., "Introduction to Programming"
+    
+    private String description;
+    
+    @Column(nullable = false)
+    private Integer credits; // e.g., 3 credits
+    
+    @Column(nullable = false)
+    private String department; // e.g., "Computer Science"
+    
+    @Column(nullable = false)
+    private String instructor;
+    
+    @Column(nullable = false)
+    private Integer maxCapacity; // Maximum students allowed
+    
+    @Column(nullable = false)
+    private Integer currentEnrollment = 0; // Current number of students
+    
+    // Check if course is full
+    public boolean isFull() {
+        return currentEnrollment >= maxCapacity;
+    }
+}
+```
+
+***
+
+### Step 2.4: Create Enrollment Entity (Links Students to Courses)
+
+**Right-click on** `entity` package → New → Java Class → Name: `Enrollment`
+
+```java
+package com.studentmanagement.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "enrollments")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class Enrollment {
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne
+    @JoinColumn(name = "student_id", nullable = false)
+    private Student student;
+    
+    @ManyToOne
+    @JoinColumn(name = "course_id", nullable = false)
+    private Course course;
+    
+    @Column(nullable = false)
+    private LocalDate enrollmentDate;
+    
+    private String grade; // A, B, C, D, F (null if not graded yet)
+    
+    @Column(nullable = false)
+    private String status; // ENROLLED, COMPLETED, DROPPED
+}
+```
+
+**📖 Understanding Relationships:**
+
+```java
+@ManyToOne  
+// Many enrollments can belong to ONE student
+// Many enrollments can belong to ONE course
+
+@JoinColumn(name = "student_id")  
+// Creates a column "student_id" that stores the Student's ID
+// This is a FOREIGN KEY that links to the students table
+```
+
+**Example:**
+```
+students table:
+id | firstName | lastName
+1  | Raj       | Kumar
+2  | Priya     | Sharma
+
+courses table:
+id | courseCode | courseName
+1  | CS101      | Programming
+2  | MATH201    | Calculus
+
+enrollments table:
+id | student_id | course_id | grade
+1  | 1          | 1         | A      (Raj enrolled in Programming)
+2  | 1          | 2         | B      (Raj enrolled in Calculus)
+3  | 2          | 1         | A      (Priya enrolled in Programming)
+```
+
+***
+
+## 🗄️ Part 3: Create Repositories (10 minutes)
+
+Repositories handle database operations automatically!
+
+### Step 3.1: Create StudentRepository
+
+**Right-click on** `repository` package → New → Java Class → Type: Interface → Name: `StudentRepository`
+
+```java
+package com.studentmanagement.repository;
+
+import com.studentmanagement.entity.Student;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface StudentRepository extends JpaRepository<Student, Long> {
+    
+    // Find student by email
+    Optional<Student> findByEmail(String email);
+    
+    // Find students by status
+    List<Student> findByStatus(String status);
+    
+    // Find students by first name (case insensitive)
+    List<Student> findByFirstNameContainingIgnoreCase(String firstName);
+    
+    // Find students by city
+    List<Student> findByCity(String city);
+    
+    // Check if email exists
+    boolean existsByEmail(String email);
+}
+```
+
+**📖 What You Get for FREE:**
+
+Spring Data JPA automatically creates these methods:
+- `save(student)` - Add or update student
+- `findById(id)` - Find student by ID
+- `findAll()` - Get all students
+- `deleteById(id)` - Delete student
+- `count()` - Count total students
+- Plus the custom methods we defined above!
+
+***
+
+### Step 3.2: Create CourseRepository
+
+```java
+package com.studentmanagement.repository;
+
+import com.studentmanagement.entity.Course;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface CourseRepository extends JpaRepository<Course, Long> {
+    
+    // Find course by code
+    Optional<Course> findByCourseCode(String courseCode);
+    
+    // Find courses by department
+    List<Course> findByDepartment(String department);
+    
+    // Find courses by instructor
+    List<Course> findByInstructor(String instructor);
+    
+    // Find available courses (not full)
+    List<Course> findByCurrentEnrollmentLessThan(Integer maxCapacity);
+    
+    // Check if course code exists
+    boolean existsByCourseCode(String courseCode);
+}
+```
+
+***
+
+### Step 3.3: Create EnrollmentRepository
+
+```java
+package com.studentmanagement.repository;
+
+import com.studentmanagement.entity.Enrollment;
+import com.studentmanagement.entity.Student;
+import com.studentmanagement.entity.Course;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface EnrollmentRepository extends JpaRepository<Enrollment, Long> {
+    
+    // Find all enrollments for a student
+    List<Enrollment> findByStudent(Student student);
+    
+    // Find all enrollments for a course
+    List<Enrollment> findByCourse(Course course);
+    
+    // Find specific enrollment
+    Optional<Enrollment> findByStudentAndCourse(Student student, Course course);
+    
+    // Find enrollments by status
+    List<Enrollment> findByStatus(String status);
+    
+    // Check if student is already enrolled in course
+    boolean existsByStudentAndCourse(Student student, Course course);
+}
+```
+
+***
+
+## 💼 Part 4: Create DTOs (Data Transfer Objects) (15 minutes)
+
+DTOs are used to send/receive data through APIs (separate from database entities).
+
+### Step 4.1: Create StudentDTO
+
+**Right-click on** `dto` package → New → Java Class → Name: `StudentDTO`
+
+```java
+package com.studentmanagement.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDate;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class StudentDTO {
+    
+    private Long id;
+    
+    @NotBlank(message = "First name is required")
+    @Size(min = 2, max = 50, message = "First name must be between 2 and 50 characters")
+    private String firstName;
+    
+    @NotBlank(message = "Last name is required")
+    @Size(min = 2, max = 50, message = "Last name must be between 2 and 50 characters")
+    private String lastName;
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
+    private String email;
+    
+    @NotBlank(message = "Phone is required")
+    @Pattern(regexp = "^[0-9]{10}$", message = "Phone must be 10 digits")
+    private String phone;
+    
+    @NotNull(message = "Date of birth is required")
+    @Past(message = "Date of birth must be in the past")
+    private LocalDate dateOfBirth;
+    
+    @NotBlank(message = "Gender is required")
+    @Pattern(regexp = "^(Male|Female|Other)$", message = "Gender must be Male, Female, or Other")
+    private String gender;
+    
+    private String address;
+    private String city;
+    private String state;
+    private String zipCode;
+    
+    private LocalDate enrollmentDate;
+    private String status;
+}
+```
+
+**📖 Validation Annotations Explained:**
+
+```java
+@NotBlank  // Cannot be null, empty, or just whitespace
+@NotNull   // Cannot be null (but can be empty)
+@Email     // Must be valid email format
+@Size(min=2, max=50)  // String length must be between 2-50
+@Pattern(regexp="...")  // Must match regular expression
+@Past      // Date must be in the past
+```
+
+***
+
+### Step 4.2: Create CourseDTO
+
+```java
+package com.studentmanagement.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class CourseDTO {
+    
+    private Long id;
+    
+    @NotBlank(message = "Course code is required")
+    @Pattern(regexp = "^[A-Z]{2,4}[0-9]{3}$", message = "Course code format: CS101, MATH201")
+    private String courseCode;
+    
+    @NotBlank(message = "Course name is required")
+    @Size(min = 5, max = 100)
+    private String courseName;
+    
+    private String description;
+    
+    @NotNull(message = "Credits are required")
+    @Min(value = 1, message = "Credits must be at least 1")
+    @Max(value = 6, message = "Credits cannot exceed 6")
+    private Integer credits;
+    
+    @NotBlank(message = "Department is required")
+    private String department;
+    
+    @NotBlank(message = "Instructor is required")
+    private String instructor;
+    
+    @NotNull(message = "Max capacity is required")
+    @Min(value = 10, message = "Max capacity must be at least 10")
+    @Max(value = 200, message = "Max capacity cannot exceed 200")
+    private Integer maxCapacity;
+    
+    private Integer currentEnrollment;
+}
+```
+
+***
+
+### Step 4.3: Create EnrollmentDTO
+
+```java
+package com.studentmanagement.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.time.LocalDate;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class EnrollmentDTO {
+    
+    private Long id;
+    
+    @NotNull(message = "Student ID is required")
+    private Long studentId;
+    
+    @NotNull(message = "Course ID is required")
+    private Long courseId;
+    
+    private LocalDate enrollmentDate;
+    
+    @Pattern(regexp = "^(A|B|C|D|F)?$", message = "Grade must be A, B, C, D, or F")
+    private String grade;
+    
+    private String status;
+    
+    // For response - include student and course details
+    private String studentName;
+    private String courseName;
+    private String courseCode;
+}
+```
+
+***
+
+## 🔧 Part 5: Create Services (Business Logic) (30 minutes)
+
+Services contain the business logic and rules.
+
+### Step 5.1: Create StudentService Interface
+
+**Right-click on** `service` package → New → Java Class → Type: Interface → Name: `StudentService`
+
+```java
+package com.studentmanagement.service;
+
+import com.studentmanagement.dto.StudentDTO;
+import java.util.List;
+
+public interface StudentService {
+    StudentDTO createStudent(StudentDTO studentDTO);
+    StudentDTO getStudentById(Long id);
+    List<StudentDTO> getAllStudents();
+    List<StudentDTO> getStudentsByStatus(String status);
+    StudentDTO updateStudent(Long id, StudentDTO studentDTO);
+    void deleteStudent(Long id);
+    List<StudentDTO> searchStudentsByName(String name);
+}
+```
+
+***
+
+### Step 5.2: Create StudentServiceImpl (Implementation)
+
+**Right-click on** `service` package → New → Java Class → Name: `StudentServiceImpl`
+
+```java
+package com.studentmanagement.service;
+
+import com.studentmanagement.dto.StudentDTO;
+import com.studentmanagement.entity.Student;
+import com.studentmanagement.repository.StudentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class StudentServiceImpl implements StudentService {
+    
+    private final StudentRepository studentRepository;
+    
+    @Override
+    public StudentDTO createStudent(StudentDTO studentDTO) {
+        // Check if email already exists
+        if (studentRepository.existsByEmail(studentDTO.getEmail())) {
+            throw new RuntimeException("Email already exists: " + studentDTO.getEmail());
+        }
+        
+        // Convert DTO to Entity
+        Student student = convertToEntity(studentDTO);
+        student.setEnrollmentDate(LocalDate.now());
+        student.setStatus("ACTIVE");
+        
+        // Save to database
+        Student savedStudent = studentRepository.save(student);
+        
+        // Convert back to DTO and return
+        return convertToDTO(savedStudent);
+    }
+    
+    @Override
+    public StudentDTO getStudentById(Long id) {
+        Student student = studentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Student not found with ID: " + id));
+        return convertToDTO(student);
+    }
+    
+    @Override
+    public List<StudentDTO> getAllStudents() {
+        return studentRepository.findAll()
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<StudentDTO> getStudentsByStatus(String status) {
+        return studentRepository.findByStatus(status)
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public StudentDTO updateStudent(Long id, StudentDTO studentDTO) {
+        Student existingStudent = studentRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Student not found with ID: " + id));
+        
+        // Update fields
+        existingStudent.setFirstName(studentDTO.getFirstName());
+        existingStudent.setLastName(studentDTO.getLastName());
+        existingStudent.setEmail(studentDTO.getEmail());
+        existingStudent.setPhone(studentDTO.getPhone());
+        existingStudent.setDateOfBirth(studentDTO.getDateOfBirth());
+        existingStudent.setGender(studentDTO.getGender());
+        existingStudent.setAddress(studentDTO.getAddress());
+        existingStudent.setCity(studentDTO.getCity());
+        existingStudent.setState(studentDTO.getState());
+        existingStudent.setZipCode(studentDTO.getZipCode());
+        
+        Student updatedStudent = studentRepository.save(existingStudent);
+        return convertToDTO(updatedStudent);
+    }
+    
+    @Override
+    public void deleteStudent(Long id) {
+        if (!studentRepository.existsById(id)) {
+            throw new RuntimeException("Student not found with ID: " + id);
+        }
+        studentRepository.deleteById(id);
+    }
+    
+    @Override
+    public List<StudentDTO> searchStudentsByName(String name) {
+        return studentRepository.findByFirstNameContainingIgnoreCase(name)
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    // Helper method: Convert Entity to DTO
+    private StudentDTO convertToDTO(Student student) {
+        StudentDTO dto = new StudentDTO();
+        dto.setId(student.getId());
+        dto.setFirstName(student.getFirstName());
+        dto.setLastName(student.getLastName());
+        dto.setEmail(student.getEmail());
+        dto.setPhone(student.getPhone());
+        dto.setDateOfBirth(student.getDateOfBirth());
+        dto.setGender(student.getGender());
+        dto.setAddress(student.getAddress());
+        dto.setCity(student.getCity());
+        dto.setState(student.getState());
+        dto.setZipCode(student.getZipCode());
+        dto.setEnrollmentDate(student.getEnrollmentDate());
+        dto.setStatus(student.getStatus());
+        return dto;
+    }
+    
+    // Helper method: Convert DTO to Entity
+    private Student convertToEntity(StudentDTO dto) {
+        Student student = new Student();
+        student.setFirstName(dto.getFirstName());
+        student.setLastName(dto.getLastName());
+        student.setEmail(dto.getEmail());
+        student.setPhone(dto.getPhone());
+        student.setDateOfBirth(dto.getDateOfBirth());
+        student.setGender(dto.getGender());
+        student.setAddress(dto.getAddress());
+        student.setCity(dto.getCity());
+        student.setState(dto.getState());
+        student.setZipCode(dto.getZipCode());
+        return student;
+    }
+}
+```
+
+**📖 Code Explanation:**
+
+```java
+@RequiredArgsConstructor  
+// Lombok: Creates constructor with all 'final' fields
+// Automatically injects StudentRepository
+
+.stream()  
+// Converts List to Stream (for processing)
+
+.map(this::convertToDTO)  
+// Converts each Student entity to StudentDTO
+
+.collect(Collectors.toList())  
+// Converts Stream back to List
+
+.orElseThrow(...)  
+// If Optional is empty, throw exception
+```
+
+***
+
+### Step 5.3: Create CourseService
+
+Due to length, I'll provide the complete implementation:
+
+**CourseService.java:**
+```java
+package com.studentmanagement.service;
+
+import com.studentmanagement.dto.CourseDTO;
+import java.util.List;
+
+public interface CourseService {
+    CourseDTO createCourse(CourseDTO courseDTO);
+    CourseDTO getCourseById(Long id);
+    List<CourseDTO> getAllCourses();
+    List<CourseDTO> getCoursesByDepartment(String department);
+    CourseDTO updateCourse(Long id, CourseDTO courseDTO);
+    void deleteCourse(Long id);
+}
+```
+
+**CourseServiceImpl.java:**
+```java
+package com.studentmanagement.service;
+
+import com.studentmanagement.dto.CourseDTO;
+import com.studentmanagement.entity.Course;
+import com.studentmanagement.repository.CourseRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CourseServiceImpl implements CourseService {
+    
+    private final CourseRepository courseRepository;
+    
+    @Override
+    public CourseDTO createCourse(CourseDTO courseDTO) {
+        if (courseRepository.existsByCourseCode(courseDTO.getCourseCode())) {
+            throw new RuntimeException("Course code already exists: " + courseDTO.getCourseCode());
+        }
+        
+        Course course = convertToEntity(courseDTO);
+        course.setCurrentEnrollment(0);
+        Course savedCourse = courseRepository.save(course);
+        return convertToDTO(savedCourse);
+    }
+    
+    @Override
+    public CourseDTO getCourseById(Long id) {
+        Course course = courseRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Course not found with ID: " + id));
+        return convertToDTO(course);
+    }
+    
+    @Override
+    public List<CourseDTO> getAllCourses() {
+        return courseRepository.findAll()
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<CourseDTO> getCoursesByDepartment(String department) {
+        return courseRepository.findByDepartment(department)
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public CourseDTO updateCourse(Long id, CourseDTO courseDTO) {
+        Course existingCourse = courseRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Course not found with ID: " + id));
+        
+        existingCourse.setCourseName(courseDTO.getCourseName());
+        existingCourse.setDescription(courseDTO.getDescription());
+        existingCourse.setCredits(courseDTO.getCredits());
+        existingCourse.setDepartment(courseDTO.getDepartment());
+        existingCourse.setInstructor(courseDTO.getInstructor());
+        existingCourse.setMaxCapacity(courseDTO.getMaxCapacity());
+        
+        Course updatedCourse = courseRepository.save(existingCourse);
+        return convertToDTO(updatedCourse);
+    }
+    
+    @Override
+    public void deleteCourse(Long id) {
+        if (!courseRepository.existsById(id)) {
+            throw new RuntimeException("Course not found with ID: " + id);
+        }
+        courseRepository.deleteById(id);
+    }
+    
+    private CourseDTO convertToDTO(Course course) {
+        CourseDTO dto = new CourseDTO();
+        dto.setId(course.getId());
+        dto.setCourseCode(course.getCourseCode());
+        dto.setCourseName(course.getCourseName());
+        dto.setDescription(course.getDescription());
+        dto.setCredits(course.getCredits());
+        dto.setDepartment(course.getDepartment());
+        dto.setInstructor(course.getInstructor());
+        dto.setMaxCapacity(course.getMaxCapacity());
+        dto.setCurrentEnrollment(course.getCurrentEnrollment());
+        return dto;
+    }
+    
+    private Course convertToEntity(CourseDTO dto) {
+        Course course = new Course();
+        course.setCourseCode(dto.getCourseCode());
+        course.setCourseName(dto.getCourseName());
+        course.setDescription(dto.getDescription());
+        course.setCredits(dto.getCredits());
+        course.setDepartment(dto.getDepartment());
+        course.setInstructor(dto.getInstructor());
+        course.setMaxCapacity(dto.getMaxCapacity());
+        return course;
+    }
+}
+```
+
+***
+
+### Step 5.4: Create EnrollmentService
+
+**EnrollmentService.java:**
+```java
+package com.studentmanagement.service;
+
+import com.studentmanagement.dto.EnrollmentDTO;
+import java.util.List;
+
+public interface EnrollmentService {
+    EnrollmentDTO enrollStudent(Long studentId, Long courseId);
+    List<EnrollmentDTO> getStudentEnrollments(Long studentId);
+    List<EnrollmentDTO> getCourseEnrollments(Long courseId);
+    EnrollmentDTO updateGrade(Long enrollmentId, String grade);
+    void dropEnrollment(Long enrollmentId);
+}
+```
+
+**EnrollmentServiceImpl.java:**
+```java
+package com.studentmanagement.service;
+
+import com.studentmanagement.dto.EnrollmentDTO;
+import com.studentmanagement.entity.Course;
+import com.studentmanagement.entity.Enrollment;
+import com.studentmanagement.entity.Student;
+import com.studentmanagement.repository.CourseRepository;
+import com.studentmanagement.repository.EnrollmentRepository;
+import com.studentmanagement.repository.StudentRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class EnrollmentServiceImpl implements EnrollmentService {
+    
+    private final EnrollmentRepository enrollmentRepository;
+    private final StudentRepository studentRepository;
+    private final CourseRepository courseRepository;
+    
+    @Override
+    @Transactional
+    public EnrollmentDTO enrollStudent(Long studentId, Long courseId) {
+        // Find student
+        Student student = studentRepository.findById(studentId)
+            .orElseThrow(() -> new RuntimeException("Student not found"));
+        
+        // Find course
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new RuntimeException("Course not found"));
+        
+        // Check if already enrolled
+        if (enrollmentRepository.existsByStudentAndCourse(student, course)) {
+            throw new RuntimeException("Student is already enrolled in this course");
+        }
+        
+        // Check if course is full
+        if (course.isFull()) {
+            throw new RuntimeException("Course is full");
+        }
+        
+        // Create enrollment
+        Enrollment enrollment = new Enrollment();
+        enrollment.setStudent(student);
+        enrollment.setCourse(course);
+        enrollment.setEnrollmentDate(LocalDate.now());
+        enrollment.setStatus("ENROLLED");
+        
+        // Increment course enrollment count
+        course.setCurrentEnrollment(course.getCurrentEnrollment() + 1);
+        courseRepository.save(course);
+        
+        Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+        return convertToDTO(savedEnrollment);
+    }
+    
+    @Override
+    public List<EnrollmentDTO> getStudentEnrollments(Long studentId) {
+        Student student = studentRepository.findById(studentId)
+            .orElseThrow(() -> new RuntimeException("Student not found"));
+        
+        return enrollmentRepository.findByStudent(student)
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public List<EnrollmentDTO> getCourseEnrollments(Long courseId) {
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new RuntimeException("Course not found"));
+        
+        return enrollmentRepository.findByCourse(course)
+            .stream()
+            .map(this::convertToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public EnrollmentDTO updateGrade(Long enrollmentId, String grade) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+            .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+        
+        enrollment.setGrade(grade);
+        enrollment.setStatus("COMPLETED");
+        
+        Enrollment updatedEnrollment = enrollmentRepository.save(enrollment);
+        return convertToDTO(updatedEnrollment);
+    }
+    
+    @Override
+    @Transactional
+    public void dropEnrollment(Long enrollmentId) {
+        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
+            .orElseThrow(() -> new RuntimeException("Enrollment not found"));
+        
+        // Decrement course enrollment count
+        Course course = enrollment.getCourse();
+        course.setCurrentEnrollment(course.getCurrentEnrollment() - 1);
+        courseRepository.save(course);
+        
+        enrollmentRepository.delete(enrollment);
+    }
+    
+    private EnrollmentDTO convertToDTO(Enrollment enrollment) {
+        EnrollmentDTO dto = new EnrollmentDTO();
+        dto.setId(enrollment.getId());
+        dto.setStudentId(enrollment.getStudent().getId());
+        dto.setCourseId(enrollment.getCourse().getId());
+        dto.setEnrollmentDate(enrollment.getEnrollmentDate());
+        dto.setGrade(enrollment.getGrade());
+        dto.setStatus(enrollment.getStatus());
+        dto.setStudentName(enrollment.getStudent().getFullName());
+        dto.setCourseName(enrollment.getCourse().getCourseName());
+        dto.setCourseCode(enrollment.getCourse().getCourseCode());
+        return dto;
+    }
+}
+```
+
+***
+
+## 🌐 Part 6: Create REST Controllers (25 minutes)
+
+Controllers handle HTTP requests.
+
+### Step 6.1: Create StudentController
+
+**Right-click on** `controller` package → New → Java Class → Name: `StudentController`
+
+```java
+package com.studentmanagement.controller;
+
+import com.studentmanagement.dto.StudentDTO;
+import com.studentmanagement.service.StudentService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/students")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+public class StudentController {
+    
+    private final StudentService studentService;
+    
+    // CREATE - Add new student
+    @PostMapping
+    public ResponseEntity<StudentDTO> createStudent(@Valid @RequestBody StudentDTO studentDTO) {
+        StudentDTO createdStudent = studentService.createStudent(studentDTO);
+        return new ResponseEntity<>(createdStudent, HttpStatus.CREATED);
+    }
+    
+    // READ - Get all students
+    @GetMapping
+    public ResponseEntity<List<StudentDTO>> getAllStudents() {
+        List<StudentDTO> students = studentService.getAllStudents();
+        return ResponseEntity.ok(students);
+    }
+    
+    // READ - Get student by ID
+    @GetMapping("/{id}")
+    public ResponseEntity<StudentDTO> getStudentById(@PathVariable Long id) {
+        StudentDTO student = studentService.getStudentById(id);
+        return ResponseEntity.ok(student);
+    }
+    
+    // READ - Get students by status
+    @GetMapping("/status/{status}")
+    public ResponseEntity<List<StudentDTO>> getStudentsByStatus(@PathVariable String status) {
+        List<StudentDTO> students = studentService.getStudentsByStatus(status);
+        return ResponseEntity.ok(students);
+    }
+    
+    // READ - Search students by name
+    @GetMapping("/search")
+    public ResponseEntity<List<StudentDTO>> searchStudents(@RequestParam String name) {
+        List<StudentDTO> students = studentService.searchStudentsByName(name);
+        return ResponseEntity.ok(students);
+    }
+    
+    // UPDATE - Update student
+    @PutMapping("/{id}")
+    public ResponseEntity<StudentDTO> updateStudent(
+            @PathVariable Long id,
+            @Valid @RequestBody StudentDTO studentDTO) {
+        StudentDTO updatedStudent = studentService.updateStudent(id, studentDTO);
+        return ResponseEntity.ok(updatedStudent);
+    }
+    
+    // DELETE - Delete student
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteStudent(@PathVariable Long id) {
+        studentService.deleteStudent(id);
+        return ResponseEntity.ok("Student deleted successfully");
+    }
+}
+```
+
+**📖 Annotations Explained:**
+
+```java
+@RestController  
+// Marks this as a REST API controller
+// Automatically returns JSON (not HTML)
+
+@RequestMapping("/api/students")  
+// Base URL: All endpoints start with /api/students
+
+@CrossOrigin(origins = "*")  
+// Allows requests from any origin (frontend apps)
+
+@PostMapping  
+// Handles HTTP POST requests (CREATE)
+
+@GetMapping  
+// Handles HTTP GET requests (READ)
+
+@PutMapping  
+// Handles HTTP PUT requests (UPDATE)
+
+@DeleteMapping  
+// Handles HTTP DELETE requests (DELETE)
+
+@PathVariable Long id  
+// Extracts {id} from URL path
+
+@RequestParam String name  
+// Extracts query parameter: ?name=John
+
+@Valid @RequestBody  
+// Validates incoming JSON against DTO rules
+
+ResponseEntity<>  
+// Wrapper that includes HTTP status code
+```
+
+***
+
+### Step 6.2: Create CourseController
+
+```java
+package com.studentmanagement.controller;
+
+import com.studentmanagement.dto.CourseDTO;
+import com.studentmanagement.service.CourseService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/courses")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+public class CourseController {
+    
+    private final CourseService courseService;
+    
+    @PostMapping
+    public ResponseEntity<CourseDTO> createCourse(@Valid @RequestBody CourseDTO courseDTO) {
+        CourseDTO createdCourse = courseService.createCourse(courseDTO);
+        return new ResponseEntity<>(createdCourse, HttpStatus.CREATED);
+    }
+    
+    @GetMapping
+    public ResponseEntity<List<CourseDTO>> getAllCourses() {
+        List<CourseDTO> courses = courseService.getAllCourses();
+        return ResponseEntity.ok(courses);
+    }
+    
+    @GetMapping("/{id}")
+    public ResponseEntity<CourseDTO> getCourseById(@PathVariable Long id) {
+        CourseDTO course = courseService.getCourseById(id);
+        return ResponseEntity.ok(course);
+    }
+    
+    @GetMapping("/department/{department}")
+    public ResponseEntity<List<CourseDTO>> getCoursesByDepartment(@PathVariable String department) {
+        List<CourseDTO> courses = courseService.getCoursesByDepartment(department);
+        return ResponseEntity.ok(courses);
+    }
+    
+    @PutMapping("/{id}")
+    public ResponseEntity<CourseDTO> updateCourse(
+            @PathVariable Long id,
+            @Valid @RequestBody CourseDTO courseDTO) {
+        CourseDTO updatedCourse = courseService.updateCourse(id, courseDTO);
+        return ResponseEntity.ok(updatedCourse);
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteCourse(@PathVariable Long id) {
+        courseService.deleteCourse(id);
+        return ResponseEntity.ok("Course deleted successfully");
+    }
+}
+```
+
+***
+
+### Step 6.3: Create EnrollmentController
+
+```java
+package com.studentmanagement.controller;
+
+import com.studentmanagement.dto.EnrollmentDTO;
+import com.studentmanagement.service.EnrollmentService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/enrollments")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "*")
+public class EnrollmentController {
+    
+    private final EnrollmentService enrollmentService;
+    
+    // Enroll student in course
+    @PostMapping("/enroll")
+    public ResponseEntity<EnrollmentDTO> enrollStudent(
+            @RequestParam Long studentId,
+            @RequestParam Long courseId) {
+        EnrollmentDTO enrollment = enrollmentService.enrollStudent(studentId, courseId);
+        return new ResponseEntity<>(enrollment, HttpStatus.CREATED);
+    }
+    
+    // Get all enrollments for a student
+    @GetMapping("/student/{studentId}")
+    public ResponseEntity<List<EnrollmentDTO>> getStudentEnrollments(@PathVariable Long studentId) {
+        List<EnrollmentDTO> enrollments = enrollmentService.getStudentEnrollments(studentId);
+        return ResponseEntity.ok(enrollments);
+    }
+    
+    // Get all enrollments for a course
+    @GetMapping("/course/{courseId}")
+    public ResponseEntity<List<EnrollmentDTO>> getCourseEnrollments(@PathVariable Long courseId) {
+        List<EnrollmentDTO> enrollments = enrollmentService.getCourseEnrollments(courseId);
+        return ResponseEntity.ok(enrollments);
+    }
+    
+    // Update grade
+    @PutMapping("/{enrollmentId}/grade")
+    public ResponseEntity<EnrollmentDTO> updateGrade(
+            @PathVariable Long enrollmentId,
+            @RequestParam String grade) {
+        EnrollmentDTO updatedEnrollment = enrollmentService.updateGrade(enrollmentId, grade);
+        return ResponseEntity.ok(updatedEnrollment);
+    }
+    
+    // Drop enrollment
+    @DeleteMapping("/{enrollmentId}")
+    public ResponseEntity<String> dropEnrollment(@PathVariable Long enrollmentId) {
+        enrollmentService.dropEnrollment(enrollmentId);
+        return ResponseEntity.ok("Enrollment dropped successfully");
+    }
+}
+```
+
+***
+
+## 🚀 Part 7: Run and Test with Postman (20 minutes)
+
+### Step 7.1: Run the Application
+
+1. **Find** `StudentSystemApplication.java` (main class)
+2. **Click** the green **Run** button
+3. **Wait** for console to show: `Started StudentSystemApplication in X seconds`
+
+**Console Output:**
+```
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.0)
+
+2025-11-25 13:30:45.123  INFO 12345 --- [main] c.s.StudentSystemApplication: Started StudentSystemApplication in 2.5 seconds
+```
+
+***
+
+### Step 7.2: Test APIs in Postman
+
+**Download Postman:** https://www.postman.com/downloads/
+
+***
+
+#### Test 1: CREATE a Student
+
+```
+Method: POST
+URL: http://localhost:8080/api/students
+Headers: Content-Type: application/json
+Body (raw JSON):
+```
+
+```json
+{
+    "firstName": "Raj",
+    "lastName": "Kumar",
+    "email": "raj.kumar@example.com",
+    "phone": "9876543210",
+    "dateOfBirth": "2000-05-15",
+    "gender": "Male",
+    "address": "123 MG Road",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "zipCode": "400001"
+}
+```
+
+**Expected Response (Status: 201 Created):**
+```json
+{
+    "id": 1,
+    "firstName": "Raj",
+    "lastName": "Kumar",
+    "email": "raj.kumar@example.com",
+    "phone": "9876543210",
+    "dateOfBirth": "2000-05-15",
+    "gender": "Male",
+    "address": "123 MG Road",
+    "city": "Mumbai",
+    "state": "Maharashtra",
+    "zipCode": "400001",
+    "enrollmentDate": "2025-11-25",
+    "status": "ACTIVE"
+}
+```
+
+***
+
+#### Test 2: CREATE a Course
+
+```
+Method: POST
+URL: http://localhost:8080/api/courses
+Body:
+```
+
+```json
+{
+    "courseCode": "CS101",
+    "courseName": "Introduction to Programming",
+    "description": "Learn Java programming fundamentals",
+    "credits": 3,
+    "department": "Computer Science",
+    "instructor": "Dr. Sharma",
+    "maxCapacity": 50
+}
+```
+
+***
+
+#### Test 3: ENROLL Student in Course
+
+```
+Method: POST
+URL: http://localhost:8080/api/enrollments/enroll?studentId=1&courseId=1
+```
+
+**Expected Response:**
+```json
+{
+    "id": 1,
+    "studentId": 1,
+    "courseId": 1,
+    "enrollmentDate": "2025-11-25",
+    "grade": null,
+    "status": "ENROLLED",
+    "studentName": "Raj Kumar",
+    "courseName": "Introduction to Programming",
+    "courseCode": "CS101"
+}
+```
+
+***
+
+#### Test 4: GET All Students
+
+```
+Method: GET
+URL: http://localhost:8080/api/students
+```
+
+***
+
+#### Test 5: GET Student by ID
+
+```
+Method: GET
+URL: http://localhost:8080/api/students/1
+```
+
+***
+
+#### Test 6: SEARCH Students by Name
+
+```
+Method: GET
+URL: http://localhost:8080/api/students/search?name=Raj
+```
+
+***
+
+#### Test 7: GET Student's Enrollments
+
+```
+Method: GET
+URL: http://localhost:8080/api/enrollments/student/1
+```
+
+***
+
+#### Test 8: UPDATE Grade
+
+```
+Method: PUT
+URL: http://localhost:8080/api/enrollments/1/grade?grade=A
+```
+
+***
+
+#### Test 9: UPDATE Student
+
+```
+Method: PUT
+URL: http://localhost:8080/api/students/1
+Body:
+```
+
+```json
+{
+    "firstName": "Raj",
+    "lastName": "Kumar",
+    "email": "raj.new@example.com",
+    "phone": "9999999999",
+    "dateOfBirth": "2000-05-15",
+    "gender": "Male",
+    "address": "456 New Address",
+    "city": "Delhi",
+    "state": "Delhi",
+    "zipCode": "110001"
+}
+```
+
+***
+
+#### Test 10: DELETE Student
+
+```
+Method: DELETE
+URL: http://localhost:8080/api/students/1
+```
+
+***
+
+## 📂 View Your Database
+
+Your SQLite database file `student_management.db` is created in the project root folder.
+
+**To view it:**
+
+1. **Download DB Browser for SQLite:** https://sqlitebrowser.org/
+2. **Open** `student_management.db` file
+3. **Click "Browse Data"** tab
+4. **Select** tables: students, courses, enrollments
+
+You'll see all your data stored!
+
+***
+
+## 🎯 Complete API Endpoints Summary
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| **Students** |
+| POST | `/api/students` | Create student |
+| GET | `/api/students` | Get all students |
+| GET | `/api/students/{id}` | Get student by ID |
+| GET | `/api/students/status/{status}` | Filter by status |
+| GET | `/api/students/search?name=X` | Search by name |
+| PUT | `/api/students/{id}` | Update student |
+| DELETE | `/api/students/{id}` | Delete student |
+| **Courses** |
+| POST | `/api/courses` | Create course |
+| GET | `/api/courses` | Get all courses |
+| GET | `/api/courses/{id}` | Get course by ID |
+| GET | `/api/courses/department/{dept}` | Filter by department |
+| PUT | `/api/courses/{id}` | Update course |
+| DELETE | `/api/courses/{id}` | Delete course |
+| **Enrollments** |
+| POST | `/api/enrollments/enroll?studentId=X&courseId=Y` | Enroll student |
+| GET | `/api/enrollments/student/{studentId}` | Get student's courses |
+| GET | `/api/enrollments/course/{courseId}` | Get course students |
+| PUT | `/api/enrollments/{id}/grade?grade=A` | Update grade |
+| DELETE | `/api/enrollments/{id}` | Drop enrollment |
+
+***
+
+## 🎊 Congratulations!
+
+You've built a **complete Student Management System**!
+
+**What You Learned:**
+✅ Spring Boot project setup
+✅ Entity relationships (@ManyToOne)
+✅ Repository pattern
+✅ Service layer (business logic)
+✅ DTO pattern
+✅ REST API design (CRUD)
+✅ Input validation
+✅ Transaction management
+✅ SQLite integration
+✅ Testing with Postman
+
+**Next Steps:**
+1. Add exception handling (@ControllerAdvice)
+2. Add pagination for large datasets
+3. Add JWT authentication
+4. Build a frontend (React/Angular)
+5. Deploy to cloud (Heroku/AWS)
+
+Need help with any specific part? Just ask! 🚀
+
+Sources
